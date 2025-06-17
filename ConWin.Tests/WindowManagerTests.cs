@@ -122,6 +122,45 @@ namespace ConWin.Tests
             Assert.Same(top3_Z0_addedLater, topLevelDrawn[1]); // Assuming stable sort for same Z-index
             Assert.Same(top2_Z1, topLevelDrawn[2]);
         }
+
+        [Fact]
+        public void CircularChildReferences_AreHandled_WithoutStackOverflow_AndCorrectOrder()
+        {
+            // Arrange
+            var manager = new WindowManager();
+            var rootWindow = new Window(0, 0, 20, 20, "Root");
+            var windowA = new Window(1, 1, 10, 10, "A");
+            var windowB = new Window(2, 2, 8, 8, "B");
+            var windowC = new Window(3, 3, 6, 6, "C");
+
+            // Build a hierarchy: Root -> A -> B -> C
+            rootWindow.Children.Add(windowA); 
+            windowA.Parent = rootWindow;
+
+            windowA.Children.Add(windowB);  
+            windowB.Parent = windowA;
+
+            windowB.Children.Add(windowC);  
+            windowC.Parent = windowB;
+
+            // Create the cycle in Children references: C points back to A (A -> B -> C -> A)
+            windowC.Children.Add(windowA); 
+
+            manager.AddWindow(rootWindow); 
+
+            // Act
+            // The method should now complete without throwing a StackOverflowException.
+            var drawOrder = manager.TestGetWindowsInDrawingOrder();
+
+            // Assert
+            // The cycle detection should prevent windowA from being added again via windowC.
+            // The expected order is Root, then A (child of Root), then B (child of A), then C (child of B).
+            Assert.Equal(4, drawOrder.Count);
+            Assert.Same(rootWindow, drawOrder[0]);
+            Assert.Same(windowA, drawOrder[1]);
+            Assert.Same(windowB, drawOrder[2]);
+            Assert.Same(windowC, drawOrder[3]);
+        }
     }
 
     public class WindowVisibilityTests
@@ -261,7 +300,7 @@ namespace ConWin.Tests
 
             var parentZ0 = new Window(0, 0, 10, 10, "P_Z0") { ZIndex = 0 };
             var childOfPZ0 = new Window(1, 1, 3, 3, "C_PZ0", BorderStyle.None, parentZ0) { ZIndex = 0 }; // Effective Z for comparison with O_Z1 is based on parent.
-            var obscurerZ1 = new Window(0, 0, 10, 10, "O_Z1") { ZIndex = 1 }; // Covers both
+            var obscurerZ1 = new Window(0, 0, 10, 10, "O_Z1") { ZIndex = 1 }; // Covers both 
             
             var windows = new List<Window> { parentZ0, childOfPZ0, obscurerZ1 };
 

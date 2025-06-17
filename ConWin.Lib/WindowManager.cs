@@ -51,21 +51,33 @@ public class WindowManager
 
         foreach (var topLevelWindow in topLevelWindows)
         {
-            AddWindowAndItsChildrenToSortedList(topLevelWindow, sortedWindows);
+            // Pass a new set for each top-level window to track visited nodes in the current branch
+            AddWindowAndItsChildrenToSortedList(topLevelWindow, sortedWindows, new HashSet<Window>());
         }
 
         return sortedWindows;
     }
 
-    private void AddWindowAndItsChildrenToSortedList(Window window, List<Window> sortedList)
+    private void AddWindowAndItsChildrenToSortedList(Window window, List<Window> sortedList, HashSet<Window> visitedInPath)
     {
+        // Check for circular dependency
+        if (visitedInPath.Contains(window))
+        {
+            // Cycle detected, do not process this window again in this path
+            // Optionally, log this event or throw a specific exception if strict error handling is desired.
+            return; 
+        }
+
+        visitedInPath.Add(window); // Mark as visited in current recursion path
+
         sortedList.Add(window);
-        // Children are drawn on top of their parent, respecting their own Z-index relative to siblings if needed in future.
-        // For now, simple recursive add is fine as children are always on top of parent.
+        
         var childrenSorted = window.Children.OrderBy(c => c.ZIndex).ToList(); 
         foreach (var child in childrenSorted)
         {
-            AddWindowAndItsChildrenToSortedList(child, sortedList);
+            AddWindowAndItsChildrenToSortedList(child, sortedList, visitedInPath);
         }
+
+        visitedInPath.Remove(window); // Unmark as visited when recursion for this node (and its children) is done
     }
 }
